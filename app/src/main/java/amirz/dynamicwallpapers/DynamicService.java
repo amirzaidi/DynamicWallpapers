@@ -195,6 +195,9 @@ public class DynamicService extends WallpaperService {
         @Override
         public void run() {
             if (mVisible && mSurfaceHolder != null) {
+                int delayToNext = mTransitions.delayToNext();
+                int blurRadius = mTransitions.getBlur();
+
                 Allocation allocIn = Allocation.createFromBitmap(mRs, mScaledBitmap);
                 Allocation allocOut = Allocation.createFromBitmap(mRs, mEffectBitmap);
 
@@ -202,7 +205,6 @@ public class DynamicService extends WallpaperService {
 
                 //color curves
 
-                int blurRadius = mTransitions.getBlur();
                 if (blurRadius > 0) {
                     ScriptIntrinsicBlur blur = ScriptIntrinsicBlur.create(mRs, allocIn.getElement());
                     blur.setRadius(blurRadius);
@@ -219,7 +221,7 @@ public class DynamicService extends WallpaperService {
                 mSurfaceHolder.unlockCanvasAndPost(canvas);
 
                 mHandler.removeCallbacks(this);
-                mHandler.postDelayed(this, mTransitions.inTransition() ? 5 : 60  * 1000);
+                mHandler.postDelayed(this, delayToNext);
             }
         }
     }
