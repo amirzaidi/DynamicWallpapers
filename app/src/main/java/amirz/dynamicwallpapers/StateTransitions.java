@@ -2,9 +2,13 @@ package amirz.dynamicwallpapers;
 
 import android.content.Context;
 
+/**
+ * Keeps track of timing after locking/unlocking, and gets the variables for effects
+ */
 public class StateTransitions {
     /**
      * Constants in milliseconds
+     * 1000 / FAST_UPDATES is the framerate
      */
     private final static int FAST_UPDATES = 2;
     private final static int SCHEDULED_UPDATES = 60 * 1000;
@@ -23,7 +27,11 @@ public class StateTransitions {
     }
 
     float getSaturation() {
-        return 2f;
+        return 1f;
+    }
+
+    float getContrast() {
+        return 1f;
     }
 
     int delayToNext() {

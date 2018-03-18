@@ -23,6 +23,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.InputStream;
+import java.util.Calendar;
 
 public class DynamicService extends WallpaperService {
     @Override
@@ -40,10 +41,23 @@ public class DynamicService extends WallpaperService {
         private final int mSrcWidth;
         private final int mSrcHeight;
 
+        /**
+         * Cache that changes on rotation
+         */
         private final Canvas mScaledCanvas = new Canvas();
         private Bitmap mScaledBitmap;
-        private Bitmap mEffectBitmap;
+
+        /**
+         * Cache that changes every minute
+         */
+        private int mLastMinute;
+        private Bitmap mMinuteBitmap;
+
+        /**
+         * Cache that changes every render
+         */
         private RenderScript mRs;
+        private Bitmap mEffectBitmap;
 
         private SurfaceHolder mSurfaceHolder;
         private boolean mVisible;
@@ -153,6 +167,10 @@ public class DynamicService extends WallpaperService {
             super.onSurfaceChanged(holder, format, width, height);
 
             mScaledBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+
+            mLastMinute = -1;
+            mMinuteBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+
             mEffectBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
 
             scaleSource(width, height);
@@ -198,23 +216,34 @@ public class DynamicService extends WallpaperService {
                 int delayToNext = mTransitions.delayToNext();
                 int blurRadius = mTransitions.getBlur();
 
-                Allocation allocIn = Allocation.createFromBitmap(mRs, mScaledBitmap);
-                Allocation allocOut = Allocation.createFromBitmap(mRs, mEffectBitmap);
+                Allocation allocMinute = Allocation.createFromBitmap(mRs, mMinuteBitmap);
 
-                allocIn.copyTo(mEffectBitmap);
+                int minute = currentMinute();
+                if (minute != mLastMinute) {
+                    mLastMinute = minute;
+                    Allocation allocScaled = Allocation.createFromBitmap(mRs, mScaledBitmap);
 
-                //color curves
+                    float saturation = mTransitions.getSaturation();
+                    float contrast = mTransitions.getContrast();
+                    allocScaled.copyTo(mMinuteBitmap);
 
-                if (blurRadius > 0) {
-                    ScriptIntrinsicBlur blur = ScriptIntrinsicBlur.create(mRs, allocIn.getElement());
-                    blur.setRadius(blurRadius);
-                    blur.setInput(allocIn);
-                    blur.forEach(allocOut);
-                    allocOut.copyTo(mEffectBitmap);
+                    allocScaled.destroy();
                 }
 
-                allocOut.destroy();
-                allocIn.destroy();
+                Allocation allocEffect = Allocation.createFromBitmap(mRs, mEffectBitmap);
+
+                if (blurRadius > 0) {
+                    ScriptIntrinsicBlur blur = ScriptIntrinsicBlur.create(mRs, allocMinute.getElement());
+                    blur.setRadius(blurRadius);
+                    blur.setInput(allocMinute);
+                    blur.forEach(allocEffect);
+                    allocEffect.copyTo(mEffectBitmap);
+                } else {
+                    allocMinute.copyTo(mEffectBitmap);
+                }
+
+                allocEffect.destroy();
+                allocMinute.destroy();
 
                 Canvas canvas = mSurfaceHolder.lockCanvas();
                 canvas.drawBitmap(mEffectBitmap, 0, 0,null);
@@ -223,6 +252,11 @@ public class DynamicService extends WallpaperService {
                 mHandler.removeCallbacks(this);
                 mHandler.postDelayed(this, delayToNext);
             }
+        }
+
+        private int currentMinute() {
+            Calendar calendar = Calendar.getInstance();
+            return calendar.get(Calendar.MINUTE) + 60 * calendar.get(Calendar.HOUR_OF_DAY);
         }
     }
 }
