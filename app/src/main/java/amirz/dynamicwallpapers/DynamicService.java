@@ -50,7 +50,7 @@ public class DynamicService extends WallpaperService {
         /**
          * Cache that changes every minute
          */
-        private int mLastMinute;
+        private int mLastSecond;
         private Bitmap mMinuteBitmap;
 
         /**
@@ -168,7 +168,7 @@ public class DynamicService extends WallpaperService {
 
             mScaledBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
 
-            mLastMinute = -1;
+            mLastSecond = -1;
             mMinuteBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
 
             mEffectBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
@@ -218,13 +218,15 @@ public class DynamicService extends WallpaperService {
 
                 Allocation allocMinute = Allocation.createFromBitmap(mRs, mMinuteBitmap);
 
-                int minute = currentMinute();
-                if (minute != mLastMinute) {
-                    mLastMinute = minute;
+                int second = currentSecond();
+                if (second != mLastSecond) {
+                    mLastSecond = second;
                     Allocation allocScaled = Allocation.createFromBitmap(mRs, mScaledBitmap);
 
-                    float saturation = mTransitions.getSaturation();
-                    float contrast = mTransitions.getContrast();
+                    //ScriptC_main main = new ScriptC_main();
+
+                    float saturation = mTransitions.getSaturation(second);
+                    float contrast = mTransitions.getContrast(second);
                     allocScaled.copyTo(mMinuteBitmap);
 
                     allocScaled.destroy();
@@ -254,9 +256,11 @@ public class DynamicService extends WallpaperService {
             }
         }
 
-        private int currentMinute() {
+        private int currentSecond() {
             Calendar calendar = Calendar.getInstance();
-            return calendar.get(Calendar.MINUTE) + 60 * calendar.get(Calendar.HOUR_OF_DAY);
+            return calendar.get(Calendar.SECOND) +
+                    60 * calendar.get(Calendar.MINUTE) +
+                    3600 * calendar.get(Calendar.HOUR_OF_DAY);
         }
     }
 }
