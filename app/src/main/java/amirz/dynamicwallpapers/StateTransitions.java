@@ -43,7 +43,7 @@ public class StateTransitions extends BroadcastReceiver {
     }
 
     int delayToNext() {
-         return mUnlocked && msSinceChange() <= UNLOCK_BLUR_MS ?
+         return inTransition() ?
                  FAST_UPDATE_MS :
                  SCHEDULED_UPDATE_MS;
     }
@@ -58,6 +58,10 @@ public class StateTransitions extends BroadcastReceiver {
         float lockFactor = (float) msSinceChange() / UNLOCK_BLUR_MS;
         float unlockFactor = 1 - Curves.clamp(lockFactor);
         return (int) (MAX_BLUR * Curves.halfCosPosWeak(unlockFactor));
+    }
+
+    boolean inTransition() {
+        return mUnlocked && msSinceChange() <= UNLOCK_BLUR_MS;
     }
 
     void setUnlocked(boolean unlocked) {

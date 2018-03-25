@@ -46,17 +46,19 @@ public class DynamicService extends WallpaperService {
          */
         private final Canvas mScaledCanvas = new Canvas();
         private Bitmap mScaledBitmap;
+        private Allocation mScaledAlloc;
 
         /**
          * Cache that changes every minute
          */
         private int mLastSecond;
-        private Bitmap mMinuteBitmap;
+        private Allocation mMinuteAlloc;
 
         /**
          * Cache that changes every render
          */
         private Bitmap mEffectBitmap;
+        private Allocation mEffectAlloc;
 
         private RenderScript mRs;
         private ScriptC_main mRsMain;
@@ -173,15 +175,16 @@ public class DynamicService extends WallpaperService {
         @Override
         public void onSurfaceChanged(SurfaceHolder holder, int format, int width, int height) {
             super.onSurfaceChanged(holder, format, width, height);
+            releaseBitmaps();
 
             mScaledBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-
-            mLastSecond = -1;
-            mMinuteBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-
             mEffectBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-
             scaleSource(width, height);
+
+            mScaledAlloc = Allocation.createFromBitmap(mRs, mScaledBitmap);
+            mMinuteAlloc = Allocation.createFromBitmap(mRs, mScaledBitmap);
+            mEffectAlloc = Allocation.createFromBitmap(mRs, mScaledBitmap);
+
             reloadLockState();
         }
 
@@ -209,54 +212,55 @@ public class DynamicService extends WallpaperService {
         @Override
         public void onDestroy() {
             super.onDestroy();
+
             mContext.unregisterReceiver(mTransitions);
             mContext.unregisterReceiver(mScreenStateReceiver);
-            mSurfaceHolder = null;
+
+            releaseBitmaps();
 
             mRsMain.destroy();
             mRs.destroy();
-            mEffectBitmap.recycle();
-            mScaledBitmap.recycle();
+
             mSrcBitmap.recycle();
+        }
+
+        private void releaseBitmaps() {
+            mLastSecond = 0;
+            if (mScaledBitmap != null) {
+                mEffectAlloc.destroy();
+                mMinuteAlloc.destroy();
+                mScaledAlloc.destroy();
+
+                mEffectBitmap.recycle();
+                mScaledBitmap.recycle();
+            }
         }
 
         @Override
         public void run() {
-            if (mVisible && mSurfaceHolder != null) {
+            if (mVisible && mScaledBitmap != null) {
                 int delayToNext = mTransitions.delayToNext();
                 int blurRadius = mTransitions.getBlur();
 
-                Allocation allocMinute = Allocation.createFromBitmap(mRs, mMinuteBitmap);
-
                 int second = currentSecond();
-                if (second != mLastSecond) {
+                if (second != mLastSecond && !mTransitions.inTransition()) {
                     mLastSecond = second;
                     float progress = (float)second / 24 / 3600;
-                    Allocation allocScaled = Allocation.createFromBitmap(mRs, mScaledBitmap);
 
                     mRsMain.invoke_setContrast(mTransitions.getContrast(progress));
                     mRsMain.set_saturationIncrease(mTransitions.getSaturation(progress));
-                    mRsMain.forEach_transform(allocScaled, allocMinute);
-
-                    allocMinute.copyTo(mMinuteBitmap);
-
-                    allocScaled.destroy();
+                    mRsMain.forEach_transform(mScaledAlloc, mMinuteAlloc);
                 }
-
-                Allocation allocEffect = Allocation.createFromBitmap(mRs, mEffectBitmap);
 
                 if (blurRadius > 0) {
-                    ScriptIntrinsicBlur blur = ScriptIntrinsicBlur.create(mRs, allocMinute.getElement());
+                    ScriptIntrinsicBlur blur = ScriptIntrinsicBlur.create(mRs, mMinuteAlloc.getElement());
                     blur.setRadius(blurRadius);
-                    blur.setInput(allocMinute);
-                    blur.forEach(allocEffect);
-                    allocEffect.copyTo(mEffectBitmap);
+                    blur.setInput(mMinuteAlloc);
+                    blur.forEach(mEffectAlloc);
+                    mEffectAlloc.copyTo(mEffectBitmap);
                 } else {
-                    allocMinute.copyTo(mEffectBitmap);
+                    mMinuteAlloc.copyTo(mEffectBitmap);
                 }
-
-                allocEffect.destroy();
-                allocMinute.destroy();
 
                 Canvas canvas = mSurfaceHolder.lockCanvas();
                 canvas.drawBitmap(mEffectBitmap, 0, 0,null);
