@@ -13,10 +13,10 @@ import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
-import android.renderscript.Allocation;
-import android.renderscript.RenderScript;
-import android.renderscript.ScriptIntrinsicBlur;
 import android.service.wallpaper.WallpaperService;
+import android.support.v8.renderscript.Allocation;
+import android.support.v8.renderscript.RenderScript;
+import android.support.v8.renderscript.ScriptIntrinsicBlur;
 import android.view.SurfaceHolder;
 
 import java.io.File;
@@ -56,9 +56,10 @@ public class DynamicService extends WallpaperService {
         /**
          * Cache that changes every render
          */
-        private RenderScript mRs;
         private Bitmap mEffectBitmap;
 
+        private RenderScript mRs;
+        private ScriptC_main mRsMain;
         private SurfaceHolder mSurfaceHolder;
         private boolean mVisible;
         private StateTransitions mTransitions;
@@ -135,20 +136,27 @@ public class DynamicService extends WallpaperService {
         public void onCreate(SurfaceHolder surfaceHolder) {
             super.onCreate(surfaceHolder);
 
-            IntentFilter filter = new IntentFilter();
-            filter.addAction(Intent.ACTION_SCREEN_ON);
-            filter.addAction(Intent.ACTION_SCREEN_OFF);
-            filter.addAction(Intent.ACTION_USER_PRESENT);
+            IntentFilter lockFilter = new IntentFilter();
+            lockFilter.addAction(Intent.ACTION_SCREEN_ON);
+            lockFilter.addAction(Intent.ACTION_SCREEN_OFF);
+            lockFilter.addAction(Intent.ACTION_USER_PRESENT);
             mScreenStateReceiver = new BroadcastReceiver() {
                 @Override
                 public void onReceive(Context context, Intent intent) {
                     reloadLockState();
                 }
             };
-            mContext.registerReceiver(mScreenStateReceiver, filter);
+            mContext.registerReceiver(mScreenStateReceiver, lockFilter);
 
             mSurfaceHolder = surfaceHolder;
             mRs = RenderScript.create(mContext);
+            mRsMain = new ScriptC_main(mRs);
+
+            IntentFilter timeFilter = new IntentFilter();
+            timeFilter.addAction(Intent.ACTION_TIME_CHANGED);
+            timeFilter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
+            timeFilter.addAction(Intent.ACTION_DATE_CHANGED);
+            mContext.registerReceiver(mTransitions, timeFilter);
         }
 
         @Override
@@ -202,8 +210,10 @@ public class DynamicService extends WallpaperService {
         public void onDestroy() {
             super.onDestroy();
             mContext.unregisterReceiver(mScreenStateReceiver);
+            mContext.unregisterReceiver(mTransitions);
             mSurfaceHolder = null;
 
+            mRsMain.destroy();
             mRs.destroy();
             mEffectBitmap.recycle();
             mScaledBitmap.recycle();
@@ -221,13 +231,12 @@ public class DynamicService extends WallpaperService {
                 int second = currentSecond();
                 if (second != mLastSecond) {
                     mLastSecond = second;
+                    float progress = (float)second / 24 / 3600;
                     Allocation allocScaled = Allocation.createFromBitmap(mRs, mScaledBitmap);
 
-                    //ScriptC_main main = new ScriptC_main();
-
-                    float saturation = mTransitions.getSaturation(second);
-                    float contrast = mTransitions.getContrast(second);
-                    allocScaled.copyTo(mMinuteBitmap);
+                    mRsMain.invoke_setContrast(mTransitions.getContrast(progress));
+                    mRsMain.set_saturationIncrease(mTransitions.getSaturation(progress));
+                    mRsMain.forEach_transform(allocScaled, allocMinute);
 
                     allocScaled.destroy();
                 }

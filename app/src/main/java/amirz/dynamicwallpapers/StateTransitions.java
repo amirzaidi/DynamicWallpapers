@@ -1,11 +1,13 @@
 package amirz.dynamicwallpapers;
 
+import android.content.BroadcastReceiver;
 import android.content.Context;
+import android.content.Intent;
 
 /**
  * Keeps track of timing after locking/unlocking, and gets the variables for effects
  */
-public class StateTransitions {
+public class StateTransitions extends BroadcastReceiver {
     private final static int FAST_UPDATE_FPS = 250;
     private final static int FAST_UPDATE_MS = 1000 / FAST_UPDATE_FPS;
     private final static int SCHEDULED_UPDATE_MS = 60 * 1000;
@@ -19,16 +21,25 @@ public class StateTransitions {
     private long mLastChange;
 
     StateTransitions(Context context, Runnable update) {
+        super();
         mContext = context;
         mUpdate = update;
     }
 
-    float getSaturation(int secondOfDay) {
-        return 1f;
+    float getSaturation(float progress) {
+        //Keep progress at 50% between 8AM and 4PM
+        progress = Curves.extend(progress, 1f / 3, 2f / 3);
+
+        //Between 0.6f (night) and 1.2f (day)
+        return 0.9f - 0.3f * Curves.cos(progress);
     }
 
-    float getContrast(int secondOfDay) {
-        return 1f;
+    float getContrast(float progress) {
+        //Keep progress at 50% between 4AM and 8PM
+        progress = Curves.extend(progress, 1f / 6, 5f / 6);
+
+        //Between 1.0f (day) and 1.5f (night)
+        return 1.25f + 0.25f * Curves.cos(progress);
     }
 
     int delayToNext() {
@@ -59,5 +70,11 @@ public class StateTransitions {
 
     private long msSinceChange() {
         return System.currentTimeMillis() - mLastChange;
+    }
+
+    @Override
+    public void onReceive(Context context, Intent intent) {
+        mLastChange = System.currentTimeMillis();
+        mUpdate.run();
     }
 }
