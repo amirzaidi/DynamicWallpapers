@@ -74,7 +74,7 @@ public class StateTransitions extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        mLastChange = System.currentTimeMillis();
+        mLastChange = System.currentTimeMillis() - UNLOCK_BLUR_MS;
         mUpdate.run();
     }
 }
