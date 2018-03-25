@@ -209,8 +209,8 @@ public class DynamicService extends WallpaperService {
         @Override
         public void onDestroy() {
             super.onDestroy();
-            mContext.unregisterReceiver(mScreenStateReceiver);
             mContext.unregisterReceiver(mTransitions);
+            mContext.unregisterReceiver(mScreenStateReceiver);
             mSurfaceHolder = null;
 
             mRsMain.destroy();
@@ -237,6 +237,8 @@ public class DynamicService extends WallpaperService {
                     mRsMain.invoke_setContrast(mTransitions.getContrast(progress));
                     mRsMain.set_saturationIncrease(mTransitions.getSaturation(progress));
                     mRsMain.forEach_transform(allocScaled, allocMinute);
+
+                    allocMinute.copyTo(mMinuteBitmap);
 
                     allocScaled.destroy();
                 }

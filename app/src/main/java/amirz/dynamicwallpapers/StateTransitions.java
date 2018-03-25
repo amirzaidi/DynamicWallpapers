@@ -30,16 +30,16 @@ public class StateTransitions extends BroadcastReceiver {
         //Keep progress at 50% between 8AM and 4PM
         progress = Curves.extend(progress, 1f / 3, 2f / 3);
 
-        //Between 0.6f (night) and 1.2f (day)
-        return 0.9f - 0.3f * Curves.cos(progress);
+        //Between 0.4f (night) and 1.2f (day)
+        return 0.8f - 0.4f * Curves.cos(progress);
     }
 
     float getContrast(float progress) {
         //Keep progress at 50% between 4AM and 8PM
         progress = Curves.extend(progress, 1f / 6, 5f / 6);
 
-        //Between 1.0f (day) and 1.5f (night)
-        return 1.25f + 0.25f * Curves.cos(progress);
+        //Between 1.0f (day) and 1.4f (night)
+        return 1.2f + 0.2f * Curves.cos(progress);
     }
 
     int delayToNext() {
