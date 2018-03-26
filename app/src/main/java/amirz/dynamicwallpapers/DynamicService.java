@@ -129,11 +129,18 @@ public class DynamicService extends WallpaperService {
         */
 
         @Override
-        public void onOffsetsChanged(float xOffset, float yOffset, float xOffsetStep, float yOffsetStep, int xPixelOffset, int yPixelOffset) {
+        public void onOffsetsChanged(final float xOffset, float yOffset, float xOffsetStep, float yOffsetStep, int xPixelOffset, int yPixelOffset) {
             super.onOffsetsChanged(xOffset, yOffset, xOffsetStep, yOffsetStep, xPixelOffset, yPixelOffset);
-            cutSource(xOffset);
-            mLastSecond = 0;
-            run();
+
+            //ToDo: Implement smooth page switching
+            final DynamicService.WPEngine self = this;
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    cutSource(xOffset);
+                    self.run();
+                }
+            });
         }
 
         @Override
@@ -198,35 +205,49 @@ public class DynamicService extends WallpaperService {
         private void scaleSource() {
             int srcWidth = mSrcBitmap.getWidth();
             int srcHeight = mSrcBitmap.getHeight();
+            float srcRatio = (float)srcWidth / srcHeight;
+
             int destWidth = mCutBitmap.getWidth();
             int destHeight = mCutBitmap.getHeight();
+            float destRatio = (float)destWidth / destHeight;
+
             int cutVertical = 0;
 
             //Aspect ratio equalization
             if (mLandscape) {
+                if (srcRatio < 1 / destRatio) {
+                    //Less wide than portrait, cut source top/bottom
+                    cutVertical += (int)(srcHeight - srcWidth * destRatio);
+                }
 
+                //Cut source top/bottom to match portrait position
+                float heightScale = (srcHeight - cutVertical) / destHeight;
+                cutVertical += (int)(heightScale * (destWidth - ((float)destHeight * destHeight / destWidth)));
+
+                //Make sure ratio is correct again now
+                srcRatio = (float)srcWidth / (srcHeight - cutVertical);
+                destWidth = (int)(destHeight * srcRatio);
             } else {
-                float srcRatio = (float)srcWidth / srcHeight;
-                float destRatio = (float)destWidth / destHeight;
                 if (srcRatio > destRatio) {
+                    //Scrollable
                     destWidth = (int)(destHeight * srcRatio);
                 } else if (srcRatio < destRatio) {
-                    cutVertical = (int)(srcHeight - (float)srcWidth / destRatio) / 2;
+                    //Fixed, cut top/bottom
+                    cutVertical = (int)(srcHeight - srcWidth / destRatio);
                 }
             }
 
             mScaledBitmap = Bitmap.createBitmap(destWidth, destHeight, Bitmap.Config.ARGB_8888);
 
             mCanvas.setBitmap(mScaledBitmap);
-            mCanvas.drawBitmap(mSrcBitmap,
+            mCanvas.drawBitmap(mSrcBitmap, new Rect(0,
+                        cutVertical / 2,
+                        srcWidth,
+                        srcHeight - cutVertical / 2),
                     new Rect(0,
-                            cutVertical,
-                            srcWidth,
-                            srcHeight - cutVertical),
-                    new Rect(0,
-                            0,
-                            destWidth,
-                            destHeight), null);
+                        0,
+                        destWidth,
+                        destHeight), null);
         }
 
         private void cutSource(float progress) {
@@ -248,6 +269,7 @@ public class DynamicService extends WallpaperService {
                             destHeight),null);
 
             mCutAlloc.copyFrom(mCutBitmap);
+            mLastSecond = 0; //Propagate changes to next level
         }
 
         @Override
