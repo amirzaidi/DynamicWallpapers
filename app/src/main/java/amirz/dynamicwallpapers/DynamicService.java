@@ -43,9 +43,8 @@ public class DynamicService extends WallpaperService {
          * Cache that changes on rotation and swipes
          */
         private final Canvas mCanvas = new Canvas();
-        private Bitmap mScaledBitmap;
-        private Bitmap mCutBitmap;
-        private Allocation mCutAlloc;
+        private Bitmap mScaleBitmap;
+        private Allocation mScaleAlloc;
 
         /**
          * Cache that changes every minute
@@ -63,10 +62,12 @@ public class DynamicService extends WallpaperService {
         private RenderScript mRs;
         private ScriptC_main mRsMain;
         private SurfaceHolder mSurfaceHolder;
+        private Rect mDestRect;
         private boolean mVisible;
         private StateTransitions mTransitions;
 
-        private boolean mLandscape;
+        private float mScroll;
+        private boolean mScrollChange;
 
         WPEngine(Context context) {
             super();
@@ -129,18 +130,11 @@ public class DynamicService extends WallpaperService {
         */
 
         @Override
-        public void onOffsetsChanged(final float xOffset, float yOffset, float xOffsetStep, float yOffsetStep, int xPixelOffset, int yPixelOffset) {
+        public void onOffsetsChanged(float xOffset, float yOffset, float xOffsetStep, float yOffsetStep, int xPixelOffset, int yPixelOffset) {
             super.onOffsetsChanged(xOffset, yOffset, xOffsetStep, yOffsetStep, xPixelOffset, yPixelOffset);
-
-            //ToDo: Implement smooth page switching
-            final DynamicService.WPEngine self = this;
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    cutSource(xOffset);
-                    self.run();
-                }
-            });
+            mScroll = xOffset;
+            mScrollChange = true;
+            mHandler.post(this);
         }
 
         @Override
@@ -186,35 +180,32 @@ public class DynamicService extends WallpaperService {
             super.onSurfaceChanged(holder, format, width, height);
             releaseBitmaps();
 
-            mLandscape = width > height;
+            mDestRect = new Rect(0, 0, width, height);
 
-            mCutBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            mMinuteBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            mEffectBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            mScaleBitmap = scaleSource(); //creates mScaleBitmap
+            mMinuteBitmap = Bitmap.createBitmap(mScaleBitmap.getWidth(), mScaleBitmap.getHeight(), Bitmap.Config.ARGB_8888);
+            mEffectBitmap = Bitmap.createBitmap(mMinuteBitmap.getWidth(), mMinuteBitmap.getHeight(), Bitmap.Config.ARGB_8888);
 
-            mCutAlloc = Allocation.createFromBitmap(mRs, mCutBitmap);
+            mScaleAlloc = Allocation.createFromBitmap(mRs, mScaleBitmap);
             mMinuteAlloc = Allocation.createFromBitmap(mRs, mMinuteBitmap);
             mEffectAlloc = Allocation.createFromBitmap(mRs, mEffectBitmap);
-
-            scaleSource();
-            cutSource(0);
 
             reloadLockState();
         }
 
-        private void scaleSource() {
+        private Bitmap scaleSource() {
             int srcWidth = mSrcBitmap.getWidth();
             int srcHeight = mSrcBitmap.getHeight();
             float srcRatio = (float)srcWidth / srcHeight;
 
-            int destWidth = mCutBitmap.getWidth();
-            int destHeight = mCutBitmap.getHeight();
+            int destWidth = mDestRect.right;
+            int destHeight = mDestRect.bottom;
             float destRatio = (float)destWidth / destHeight;
 
             int cutVertical = 0;
 
             //Aspect ratio equalization
-            if (mLandscape) {
+            if (destWidth > destHeight) {
                 if (srcRatio < 1 / destRatio) {
                     //Less wide than portrait, cut source top/bottom
                     cutVertical += (int)(srcHeight - srcWidth * destRatio);
@@ -237,9 +228,9 @@ public class DynamicService extends WallpaperService {
                 }
             }
 
-            mScaledBitmap = Bitmap.createBitmap(destWidth, destHeight, Bitmap.Config.ARGB_8888);
+            Bitmap scaleBitmap = Bitmap.createBitmap(destWidth, destHeight, Bitmap.Config.ARGB_8888);
 
-            mCanvas.setBitmap(mScaledBitmap);
+            mCanvas.setBitmap(scaleBitmap);
             mCanvas.drawBitmap(mSrcBitmap, new Rect(0,
                         cutVertical / 2,
                         srcWidth,
@@ -248,28 +239,8 @@ public class DynamicService extends WallpaperService {
                         0,
                         destWidth,
                         destHeight), null);
-        }
 
-        private void cutSource(float progress) {
-            int srcWidth = mScaledBitmap.getWidth();
-            int destWidth = mCutBitmap.getWidth();
-            int destHeight = mCutBitmap.getHeight();
-
-            int leftOffset = (int)(progress * (srcWidth - destWidth));
-
-            mCanvas.setBitmap(mCutBitmap);
-            mCanvas.drawBitmap(mScaledBitmap,
-                    new Rect(leftOffset,
-                            0,
-                            leftOffset + destWidth,
-                            destHeight),
-                    new Rect(0,
-                            0,
-                            destWidth,
-                            destHeight),null);
-
-            mCutAlloc.copyFrom(mCutBitmap);
-            mLastSecond = 0; //Propagate changes to next level
+            return scaleBitmap;
         }
 
         @Override
@@ -289,31 +260,33 @@ public class DynamicService extends WallpaperService {
 
         private void releaseBitmaps() {
             mLastSecond = 0;
-            if (mScaledBitmap != null) {
+            if (mScaleBitmap != null) {
                 mEffectAlloc.destroy();
                 mMinuteAlloc.destroy();
-                mCutAlloc.destroy();
+                mScaleAlloc.destroy();
 
                 mEffectBitmap.recycle();
                 mMinuteBitmap.recycle();
-                mScaledBitmap.recycle();
+                mScaleBitmap.recycle();
             }
         }
 
         @Override
         public void run() {
-            if (mVisible && mScaledBitmap != null) {
+            if (mVisible && mScaleBitmap != null) {
                 int delayToNext = mTransitions.delayToNext();
                 int blurRadius = mTransitions.getBlur();
 
                 int second = currentSecond();
-                if (second != mLastSecond && !mTransitions.inTransition()) {
+                if (mScrollChange) {
+                    mScrollChange = false;
+                } else if (second != mLastSecond && !mTransitions.inTransition()) {
                     mLastSecond = second;
                     float progress = (float)second / 24 / 3600;
 
                     mRsMain.invoke_setContrast(mTransitions.getContrast(progress));
                     mRsMain.set_saturationIncrease(mTransitions.getSaturation(progress));
-                    mRsMain.forEach_transform(mCutAlloc, mMinuteAlloc);
+                    mRsMain.forEach_transform(mScaleAlloc, mMinuteAlloc);
                 }
 
                 if (blurRadius > 0) {
@@ -326,8 +299,14 @@ public class DynamicService extends WallpaperService {
                     mMinuteAlloc.copyTo(mEffectBitmap);
                 }
 
+                int leftOffset = (int)(mScroll * (mScaleBitmap.getWidth() - mDestRect.right));
+
                 Canvas canvas = mSurfaceHolder.lockCanvas();
-                canvas.drawBitmap(mEffectBitmap, 0, 0,null);
+                canvas.drawBitmap(mEffectBitmap, new Rect(leftOffset,
+                        0,
+                        mDestRect.right + leftOffset,
+                        mDestRect.bottom),
+                        mDestRect,null);
                 mSurfaceHolder.unlockCanvasAndPost(canvas);
 
                 mHandler.removeCallbacks(this);
