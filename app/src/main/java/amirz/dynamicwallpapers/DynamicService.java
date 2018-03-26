@@ -52,6 +52,7 @@ public class DynamicService extends WallpaperService {
          * Cache that changes every minute
          */
         private int mLastSecond;
+        private Bitmap mMinuteBitmap;
         private Allocation mMinuteAlloc;
 
         /**
@@ -178,12 +179,13 @@ public class DynamicService extends WallpaperService {
             releaseBitmaps();
 
             mScaledBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            mMinuteBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             mEffectBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             scaleSource(width, height);
 
             mScaledAlloc = Allocation.createFromBitmap(mRs, mScaledBitmap);
-            mMinuteAlloc = Allocation.createFromBitmap(mRs, mScaledBitmap);
-            mEffectAlloc = Allocation.createFromBitmap(mRs, mScaledBitmap);
+            mMinuteAlloc = Allocation.createFromBitmap(mRs, mMinuteBitmap);
+            mEffectAlloc = Allocation.createFromBitmap(mRs, mEffectBitmap);
 
             reloadLockState();
         }
@@ -232,6 +234,7 @@ public class DynamicService extends WallpaperService {
                 mScaledAlloc.destroy();
 
                 mEffectBitmap.recycle();
+                mMinuteBitmap.recycle();
                 mScaledBitmap.recycle();
             }
         }
