@@ -38,15 +38,14 @@ public class DynamicService extends WallpaperService {
 
         private final Handler mHandler = new Handler();
         private final Bitmap mSrcBitmap;
-        private final int mSrcWidth;
-        private final int mSrcHeight;
 
         /**
-         * Cache that changes on rotation
+         * Cache that changes on rotation and swipes
          */
-        private final Canvas mScaledCanvas = new Canvas();
+        private final Canvas mCanvas = new Canvas();
         private Bitmap mScaledBitmap;
-        private Allocation mScaledAlloc;
+        private Bitmap mCutBitmap;
+        private Allocation mCutAlloc;
 
         /**
          * Cache that changes every minute
@@ -66,6 +65,8 @@ public class DynamicService extends WallpaperService {
         private SurfaceHolder mSurfaceHolder;
         private boolean mVisible;
         private StateTransitions mTransitions;
+
+        private boolean mLandscape;
 
         WPEngine(Context context) {
             super();
@@ -87,8 +88,6 @@ public class DynamicService extends WallpaperService {
                 mSrcBitmap = bitmap == null ? BitmapFactory.decodeResource(getResources(), R.drawable.default_preview) : bitmap;
             }
 
-            mSrcWidth = mSrcBitmap.getWidth();
-            mSrcHeight = mSrcBitmap.getHeight();
             mTransitions = new StateTransitions(mContext, this);
         }
 
@@ -127,13 +126,15 @@ public class DynamicService extends WallpaperService {
         public void onTouchEvent(MotionEvent event) {
             super.onTouchEvent(event);
         }
+        */
 
         @Override
         public void onOffsetsChanged(float xOffset, float yOffset, float xOffsetStep, float yOffsetStep, int xPixelOffset, int yPixelOffset) {
             super.onOffsetsChanged(xOffset, yOffset, xOffsetStep, yOffsetStep, xPixelOffset, yPixelOffset);
+            cutSource(xOffset);
+            mLastSecond = 0;
             run();
         }
-        */
 
         @Override
         public void onCreate(SurfaceHolder surfaceHolder) {
@@ -178,37 +179,75 @@ public class DynamicService extends WallpaperService {
             super.onSurfaceChanged(holder, format, width, height);
             releaseBitmaps();
 
-            mScaledBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
+            mLandscape = width > height;
+
+            mCutBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             mMinuteBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
             mEffectBitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888);
-            scaleSource(width, height);
 
-            mScaledAlloc = Allocation.createFromBitmap(mRs, mScaledBitmap);
+            mCutAlloc = Allocation.createFromBitmap(mRs, mCutBitmap);
             mMinuteAlloc = Allocation.createFromBitmap(mRs, mMinuteBitmap);
             mEffectAlloc = Allocation.createFromBitmap(mRs, mEffectBitmap);
+
+            scaleSource();
+            cutSource(0);
 
             reloadLockState();
         }
 
-        private void scaleSource(int destWidth, int destHeight) {
-            float cutHorizontal = 0;
-            float cutVertical = 0;
+        private void scaleSource() {
+            int srcWidth = mSrcBitmap.getWidth();
+            int srcHeight = mSrcBitmap.getHeight();
+            int destWidth = mCutBitmap.getWidth();
+            int destHeight = mCutBitmap.getHeight();
+            int cutVertical = 0;
 
-            float srcWideness = (float)mSrcWidth / mSrcHeight;
-            float destWideness = (float)destWidth / destHeight;
-            if (srcWideness > destWideness) {
-                cutHorizontal = ((float)mSrcWidth - (float)mSrcHeight * destWideness) / 2;
-            } else if (srcWideness < destWideness) {
-                cutVertical = ((float)mSrcHeight - (float)mSrcWidth / destWideness) / 2;
+            //Aspect ratio equalization
+            if (mLandscape) {
+
+            } else {
+                float srcRatio = (float)srcWidth / srcHeight;
+                float destRatio = (float)destWidth / destHeight;
+                if (srcRatio > destRatio) {
+                    destWidth = (int)(destHeight * srcRatio);
+                } else if (srcRatio < destRatio) {
+                    cutVertical = (int)(srcHeight - (float)srcWidth / destRatio) / 2;
+                }
             }
 
-            mScaledCanvas.setBitmap(mScaledBitmap);
-            mScaledCanvas.drawBitmap(mSrcBitmap,
-                    new Rect((int)cutHorizontal,
-                            (int)cutVertical,
-                            (int)(mSrcWidth - cutHorizontal),
-                            (int)(mSrcHeight - cutVertical)),
-                    new Rect(0, 0, destWidth, destHeight),null);
+            mScaledBitmap = Bitmap.createBitmap(destWidth, destHeight, Bitmap.Config.ARGB_8888);
+
+            mCanvas.setBitmap(mScaledBitmap);
+            mCanvas.drawBitmap(mSrcBitmap,
+                    new Rect(0,
+                            cutVertical,
+                            srcWidth,
+                            srcHeight - cutVertical),
+                    new Rect(0,
+                            0,
+                            destWidth,
+                            destHeight), null);
+        }
+
+        private void cutSource(float progress) {
+            int srcWidth = mScaledBitmap.getWidth();
+            int destWidth = mCutBitmap.getWidth();
+            int destHeight = mCutBitmap.getHeight();
+
+            int leftOffset = (int)(progress * (srcWidth - destWidth));
+
+            mCanvas.setBitmap(mCutBitmap);
+            mCanvas.drawBitmap(mScaledBitmap,
+                    new Rect(leftOffset,
+                            0,
+                            leftOffset + destWidth,
+                            destHeight),
+                    new Rect(0,
+                            0,
+                            destWidth,
+                            destHeight),null);
+
+            mCutAlloc.copyFrom(mCutBitmap);
         }
 
         @Override
@@ -231,7 +270,7 @@ public class DynamicService extends WallpaperService {
             if (mScaledBitmap != null) {
                 mEffectAlloc.destroy();
                 mMinuteAlloc.destroy();
-                mScaledAlloc.destroy();
+                mCutAlloc.destroy();
 
                 mEffectBitmap.recycle();
                 mMinuteBitmap.recycle();
@@ -252,7 +291,7 @@ public class DynamicService extends WallpaperService {
 
                     mRsMain.invoke_setContrast(mTransitions.getContrast(progress));
                     mRsMain.set_saturationIncrease(mTransitions.getSaturation(progress));
-                    mRsMain.forEach_transform(mScaledAlloc, mMinuteAlloc);
+                    mRsMain.forEach_transform(mCutAlloc, mMinuteAlloc);
                 }
 
                 if (blurRadius > 0) {
