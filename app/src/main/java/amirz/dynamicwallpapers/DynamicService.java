@@ -277,7 +277,7 @@ public class DynamicService extends WallpaperService {
                 int blurRadius = mTransitions.getBlur();
 
                 int second = currentSecond();
-                if (second > mLastCurveRender + StateTransitions.MAX_CURVE_RENDER_DECAY || !mTransitions.inTransition()) {
+                if (second > mLastCurveRender + StateTransitions.MAX_CURVE_RENDER_DECAY || second < mLastCurveRender || !mTransitions.inTransition()) {
                     //Only render on the first frame of blurring and scrolling to prevent stutters
                     mLastCurveRender = second;
                     float progress = (float)second / 24 / 3600;
