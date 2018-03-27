@@ -49,7 +49,7 @@ public class DynamicService extends WallpaperService {
         /**
          * Cache that changes every minute
          */
-        private int mLastSecond;
+        private int mLastCurveRender;
         private Bitmap mMinuteBitmap;
         private Allocation mMinuteAlloc;
 
@@ -67,7 +67,6 @@ public class DynamicService extends WallpaperService {
         private StateTransitions mTransitions;
 
         private float mScroll;
-        private boolean mScrollChange;
 
         WPEngine(Context context) {
             super();
@@ -133,7 +132,7 @@ public class DynamicService extends WallpaperService {
         public void onOffsetsChanged(float xOffset, float yOffset, float xOffsetStep, float yOffsetStep, int xPixelOffset, int yPixelOffset) {
             super.onOffsetsChanged(xOffset, yOffset, xOffsetStep, yOffsetStep, xPixelOffset, yPixelOffset);
             mScroll = xOffset;
-            mScrollChange = true;
+            mTransitions.scroll();
             mHandler.post(this);
         }
 
@@ -259,7 +258,7 @@ public class DynamicService extends WallpaperService {
         }
 
         private void releaseBitmaps() {
-            mLastSecond = 0;
+            mLastCurveRender = 0;
             if (mScaleBitmap != null) {
                 mEffectAlloc.destroy();
                 mMinuteAlloc.destroy();
@@ -278,10 +277,9 @@ public class DynamicService extends WallpaperService {
                 int blurRadius = mTransitions.getBlur();
 
                 int second = currentSecond();
-                if (mScrollChange) {
-                    mScrollChange = false;
-                } else if (second != mLastSecond && !mTransitions.inTransition()) {
-                    mLastSecond = second;
+                if (second > mLastCurveRender + StateTransitions.MAX_CURVE_RENDER_DECAY || !mTransitions.inTransition()) {
+                    //Only render on the first frame of blurring and scrolling to prevent stutters
+                    mLastCurveRender = second;
                     float progress = (float)second / 24 / 3600;
 
                     mRsMain.invoke_setContrast(mTransitions.getContrast(progress));

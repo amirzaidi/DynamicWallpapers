@@ -8,17 +8,21 @@ import android.content.Intent;
  * Keeps track of timing after locking/unlocking, and gets the variables for effects
  */
 public class StateTransitions extends BroadcastReceiver {
+    public final static int MAX_CURVE_RENDER_DECAY = 120;
+
     private final static int FAST_UPDATE_FPS = 250;
     private final static int FAST_UPDATE_MS = 1000 / FAST_UPDATE_FPS;
     private final static int SCHEDULED_UPDATE_MS = 60 * 1000;
     private final static int UNLOCK_BLUR_MS = 500;
     private final static int MAX_BLUR = 25;
+    private final static int SCROLL_MS = 250;
 
     private final Context mContext;
     private final Runnable mUpdate;
 
     private boolean mUnlocked;
     private long mLastChange;
+    private long mLastScroll;
 
     StateTransitions(Context context, Runnable update) {
         super();
@@ -61,7 +65,8 @@ public class StateTransitions extends BroadcastReceiver {
     }
 
     boolean inTransition() {
-        return mUnlocked && msSinceChange() <= UNLOCK_BLUR_MS;
+        return (mUnlocked && msSinceChange() <= UNLOCK_BLUR_MS) ||
+                mLastScroll > System.currentTimeMillis() - SCROLL_MS;
     }
 
     void setUnlocked(boolean unlocked) {
@@ -70,6 +75,10 @@ public class StateTransitions extends BroadcastReceiver {
         }
         mUnlocked = unlocked;
         mUpdate.run();
+    }
+
+    void scroll() {
+        mLastScroll = System.currentTimeMillis();
     }
 
     private long msSinceChange() {
