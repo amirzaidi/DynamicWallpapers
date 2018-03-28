@@ -88,7 +88,7 @@ public class DynamicService extends WallpaperService {
                 mSrcBitmap = bitmap == null ? BitmapFactory.decodeResource(getResources(), R.drawable.default_preview) : bitmap;
             }
 
-            mTransitions = new StateTransitions(mContext, this);
+            mTransitions = new StateTransitions(mContext, this, mKm.inKeyguardRestrictedInputMode());
         }
 
         private Bitmap loadBitmap() {
@@ -171,7 +171,8 @@ public class DynamicService extends WallpaperService {
         }
 
         private void reloadLockState() {
-            mTransitions.setUnlocked(!mKm.inKeyguardRestrictedInputMode());
+            mTransitions.setLocked(mKm.inKeyguardRestrictedInputMode());
+            mHandler.post(this);
         }
 
         @Override
@@ -188,8 +189,6 @@ public class DynamicService extends WallpaperService {
             mScaleAlloc = Allocation.createFromBitmap(mRs, mScaleBitmap);
             mMinuteAlloc = Allocation.createFromBitmap(mRs, mMinuteBitmap);
             mEffectAlloc = Allocation.createFromBitmap(mRs, mEffectBitmap);
-
-            reloadLockState();
         }
 
         private Bitmap scaleSource() {

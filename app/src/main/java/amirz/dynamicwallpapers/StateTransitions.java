@@ -20,14 +20,15 @@ public class StateTransitions extends BroadcastReceiver {
     private final Context mContext;
     private final Runnable mUpdate;
 
-    private boolean mUnlocked;
-    private long mLastChange;
+    private boolean mLocked;
+    private long mLastUnlock;
     private long mLastScroll;
 
-    StateTransitions(Context context, Runnable update) {
+    StateTransitions(Context context, Runnable update, boolean locked) {
         super();
         mContext = context;
         mUpdate = update;
+        mLocked = locked;
     }
 
     float getSaturation(float progress) {
@@ -56,38 +57,37 @@ public class StateTransitions extends BroadcastReceiver {
      * @return an integer in the range of 0 to MAX_BLUR
      */
     int getBlur() {
-        if (!mUnlocked) {
+        if (mLocked) {
             return MAX_BLUR;
         }
-        float lockFactor = (float) msSinceChange() / UNLOCK_BLUR_MS;
+        float lockFactor = (float) unlockedMs() / UNLOCK_BLUR_MS;
         float unlockFactor = 1 - Curves.clamp(lockFactor);
         return (int) (MAX_BLUR * Curves.halfCosPosWeak(unlockFactor));
     }
 
     boolean inTransition() {
-        return (mUnlocked && msSinceChange() <= UNLOCK_BLUR_MS) ||
+        return (!mLocked && unlockedMs() <= UNLOCK_BLUR_MS) ||
                 mLastScroll > System.currentTimeMillis() - SCROLL_MS;
     }
 
-    void setUnlocked(boolean unlocked) {
-        if (mUnlocked != unlocked) {
-            mLastChange = System.currentTimeMillis();
+    void setLocked(boolean locked) {
+        if (mLocked && !locked) {
+            mLastUnlock = System.currentTimeMillis();
         }
-        mUnlocked = unlocked;
-        mUpdate.run();
+        mLocked = locked;
     }
 
     void scroll() {
         mLastScroll = System.currentTimeMillis();
     }
 
-    private long msSinceChange() {
-        return System.currentTimeMillis() - mLastChange;
+    private long unlockedMs() {
+        return System.currentTimeMillis() - mLastUnlock;
     }
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        mLastChange = System.currentTimeMillis() - UNLOCK_BLUR_MS;
+        mLastUnlock = System.currentTimeMillis() - UNLOCK_BLUR_MS;
         mUpdate.run();
     }
 }
