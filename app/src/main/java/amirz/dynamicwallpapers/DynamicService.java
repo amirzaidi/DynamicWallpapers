@@ -68,6 +68,8 @@ public class DynamicService extends WallpaperService {
 
         private float mScroll;
 
+        private VisualizeFX mVisualizer;
+
         WPEngine(Context context) {
             super();
             mContext = context;
@@ -161,12 +163,21 @@ public class DynamicService extends WallpaperService {
             timeFilter.addAction(Intent.ACTION_TIMEZONE_CHANGED);
             timeFilter.addAction(Intent.ACTION_DATE_CHANGED);
             mContext.registerReceiver(mTransitions, timeFilter);
+
+            final DynamicService.WPEngine self = this;
+            mVisualizer = new VisualizeFX(new Runnable() {
+                @Override
+                public void run() {
+                    mHandler.post(self);
+                }
+            });
         }
 
         @Override
         public void onVisibilityChanged(boolean visible) {
             super.onVisibilityChanged(visible);
             mVisible = visible;
+            mVisualizer.setEnabled(visible);
             reloadLockState();
         }
 
@@ -245,6 +256,8 @@ public class DynamicService extends WallpaperService {
         public void onDestroy() {
             super.onDestroy();
 
+            mVisualizer.release();
+
             mContext.unregisterReceiver(mTransitions);
             mContext.unregisterReceiver(mScreenStateReceiver);
 
@@ -273,7 +286,7 @@ public class DynamicService extends WallpaperService {
         public void run() {
             if (mVisible && mScaleBitmap != null) {
                 int delayToNext = mTransitions.delayToNext();
-                int blurRadius = mTransitions.getBlur();
+                int blurRadius = mTransitions.getBlur(mVisualizer.magnitude);
 
                 int second = currentSecond();
                 if (second > mLastCurveRender + StateTransitions.MAX_CURVE_RENDER_DECAY || second < mLastCurveRender || !mTransitions.inTransition()) {
@@ -298,11 +311,14 @@ public class DynamicService extends WallpaperService {
 
                 int leftOffset = (int)(mScroll * (mScaleBitmap.getWidth() - mDestRect.right));
 
+                int zoomWidth = (int)(mDestRect.right * mVisualizer.magnitude / 8);
+                int zoomHeight = (int)(mDestRect.bottom * mVisualizer.magnitude / 8);
+
                 Canvas canvas = mSurfaceHolder.lockCanvas();
-                canvas.drawBitmap(mEffectBitmap, new Rect(leftOffset,
-                        0,
-                        mDestRect.right + leftOffset,
-                        mDestRect.bottom),
+                canvas.drawBitmap(mEffectBitmap, new Rect(leftOffset + zoomWidth,
+                        zoomHeight,
+                        mDestRect.right + leftOffset - zoomWidth,
+                        mDestRect.bottom - zoomHeight),
                         mDestRect,null);
                 mSurfaceHolder.unlockCanvasAndPost(canvas);
 

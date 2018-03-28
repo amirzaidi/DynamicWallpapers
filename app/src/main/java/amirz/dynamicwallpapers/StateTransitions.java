@@ -10,11 +10,11 @@ import android.content.Intent;
 public class StateTransitions extends BroadcastReceiver {
     public final static int MAX_CURVE_RENDER_DECAY = 120;
 
-    private final static int FAST_UPDATE_FPS = 250;
-    private final static int FAST_UPDATE_MS = 1000 / FAST_UPDATE_FPS;
+    public final static int FAST_UPDATE_MS = 4;
+    public final static int FAST_UPDATE_FPS = 1000 / FAST_UPDATE_MS;
     private final static int SCHEDULED_UPDATE_MS = 60 * 1000;
     private final static int UNLOCK_BLUR_MS = 500;
-    private final static int MAX_BLUR = 25;
+    public final static int MAX_BLUR = 25;
     private final static int SCROLL_MS = 250;
 
     private final Context mContext;
@@ -56,13 +56,13 @@ public class StateTransitions extends BroadcastReceiver {
     /**
      * @return an integer in the range of 0 to MAX_BLUR
      */
-    int getBlur() {
+    int getBlur(float bias) {
         if (mLocked) {
             return MAX_BLUR;
         }
         float lockFactor = (float) unlockedMs() / UNLOCK_BLUR_MS;
         float unlockFactor = 1 - Curves.clamp(lockFactor);
-        return (int) (MAX_BLUR * Curves.halfCosPosWeak(unlockFactor));
+        return (int) (MAX_BLUR * Curves.clamp(bias + Curves.halfCosPosWeak(unlockFactor)));
     }
 
     boolean inTransition() {
