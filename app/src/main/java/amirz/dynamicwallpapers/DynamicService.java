@@ -16,9 +16,9 @@ import android.graphics.drawable.Drawable;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.service.wallpaper.WallpaperService;
-import android.support.v8.renderscript.Allocation;
-import android.support.v8.renderscript.RenderScript;
-import android.support.v8.renderscript.ScriptIntrinsicBlur;
+import android.renderscript.Allocation;
+import android.renderscript.RenderScript;
+import android.renderscript.ScriptIntrinsicBlur;
 import android.view.SurfaceHolder;
 
 import java.io.File;
@@ -289,7 +289,8 @@ public class DynamicService extends WallpaperService {
             try {
                 mContext.unregisterReceiver(mTransitions);
                 mContext.unregisterReceiver(mScreenStateReceiver);
-            } catch (IllegalArgumentException ignored) {
+            } catch (IllegalArgumentException e) {
+                e.printStackTrace();
             }
 
             releaseBitmaps();

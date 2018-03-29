@@ -21,8 +21,8 @@ uchar4 __attribute__((kernel)) transform(uchar4 in, uint32_t x, uint32_t y) {
     result = mix(result, f4.rgb, saturationIncrease);
 
     pixelOut = rsPackColorTo8888(result);
-    pixelOut.r = rsClamp((int)(brightnessOffset + pixelOut.r * contrastIncrease), 0, 255);
-    pixelOut.g = rsClamp((int)(brightnessOffset + pixelOut.g * contrastIncrease), 0, 255);
-    pixelOut.b = rsClamp((int)(brightnessOffset + pixelOut.b * contrastIncrease), 0, 255);
+    pixelOut.r = clamp((int)(brightnessOffset + pixelOut.r * contrastIncrease), 0, 255);
+    pixelOut.g = clamp((int)(brightnessOffset + pixelOut.g * contrastIncrease), 0, 255);
+    pixelOut.b = clamp((int)(brightnessOffset + pixelOut.b * contrastIncrease), 0, 255);
     return pixelOut;
 }
