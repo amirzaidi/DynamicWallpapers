@@ -16,7 +16,7 @@ public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureL
         mHandler = new Handler();
         setEnabled(false);
         setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
-        setDataCaptureListener(this, Visualizer.getMaxCaptureRate(), false, true);
+        setDataCaptureListener(this, Visualizer.getMaxCaptureRate() / 2, false, true);
     }
 
     @Override
@@ -37,20 +37,27 @@ public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureL
         //To 120 Hz
         int max = 120 * 1000 * 2 * mFft.length / mSamplingRate;
 
-        double magnitudeSum = 0;
+        float magnitudeSum = 0;
         for (int i = 0; i < max; i += 2) {
-            double mag = Math.hypot(mFft[i], mFft[i + 1]);
-            magnitudeSum += mag;
+            magnitudeSum += Math.hypot(mFft[i], mFft[i + 1]);
         }
 
-        float magnitudeAvg = Curves.clamp((float)magnitudeSum / max / 64);
-        magnitudeAvg *= magnitudeAvg;
+        float magnitudeAvg = Curves.clamp(magnitudeSum / max / 64);
 
         if (magnitudeAvg != magnitude) {
-            magnitude = (magnitudeAvg + magnitude) / 2;
-            if (magnitude < 0.05f) {
+            if (magnitudeAvg > magnitude) {
+                //Immediately jump to the highest value
+                magnitude = magnitudeAvg;
+            } else {
+                //Smooth the graph by slowly reducing it
+                magnitude = magnitude * 0.67f + magnitudeAvg * 0.33f;
+            }
+
+            if (magnitude < 0.1f) {
+                //Don't show any effects on small magnitudes
                 magnitude = 0f;
             }
+
             mUpdate.run();
         }
     }

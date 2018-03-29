@@ -291,7 +291,7 @@ public class DynamicService extends WallpaperService {
                     mRsMain.set_saturationIncrease(mTransitions.getSaturation(progress));
                     mRsMain.forEach_transform(mScaleAlloc, mMinuteAlloc);
 
-                    musicMagnitude = mVisualizer.magnitude / 3f;
+                    musicMagnitude = mVisualizer.magnitude * 0.4f;
                 }
 
                 int delayToNext = mTransitions.delayToNext();
