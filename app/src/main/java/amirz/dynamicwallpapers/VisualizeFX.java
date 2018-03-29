@@ -16,7 +16,7 @@ public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureL
         mHandler = new Handler();
         setEnabled(false);
         setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
-        setDataCaptureListener(this, Math.min(StateTransitions.FAST_UPDATE_FPS * 1000, Visualizer.getMaxCaptureRate()), false, true);
+        setDataCaptureListener(this, Visualizer.getMaxCaptureRate(), false, true);
     }
 
     @Override
