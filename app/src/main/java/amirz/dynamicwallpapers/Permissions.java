@@ -7,7 +7,11 @@ import android.os.Build;
 import android.support.v4.content.ContextCompat;
 
 public class Permissions {
-    public final static String[] NECESSARY = new String[] { Manifest.permission.RECORD_AUDIO, Manifest.permission.READ_EXTERNAL_STORAGE };
+    public final static String[] NECESSARY = new String[] {
+            Manifest.permission.RECORD_AUDIO,
+            Manifest.permission.MODIFY_AUDIO_SETTINGS,
+            Manifest.permission.READ_EXTERNAL_STORAGE
+    };
 
     public static boolean hasAll(Context context) {
         return Build.VERSION.SDK_INT < Build.VERSION_CODES.M || isGranted(context);
