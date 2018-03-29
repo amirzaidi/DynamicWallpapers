@@ -40,8 +40,12 @@ public class Settings extends Activity {
         }
     }
 
+    public static SharedPreferences getPrefs(Context context) {
+        return context.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
+    }
+
     public static void reload(Context context) {
-        SharedPreferences prefs = context.getSharedPreferences(SHARED_PREFERENCES_KEY, Context.MODE_PRIVATE);
+        SharedPreferences prefs = getPrefs(context);
         Resources res = context.getResources();
 
         visualizerEnabled = prefs.getBoolean(Settings.PREF_VISUALIZER, res.getBoolean(R.bool.visualizer_enable_default));

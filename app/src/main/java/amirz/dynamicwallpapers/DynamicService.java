@@ -7,6 +7,7 @@ import android.content.Context;
 import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.IntentFilter;
+import android.content.SharedPreferences;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Canvas;
@@ -35,7 +36,7 @@ public class DynamicService extends WallpaperService {
         return new WallpaperService.Engine();
     }
 
-    class WPEngine extends WallpaperService.Engine implements Runnable {
+    class WPEngine extends WallpaperService.Engine implements Runnable, SharedPreferences.OnSharedPreferenceChangeListener {
         private final Context mContext;
         private final KeyguardManager mKm;
         private BroadcastReceiver mScreenStateReceiver;
@@ -149,6 +150,7 @@ public class DynamicService extends WallpaperService {
         @Override
         public void onCreate(SurfaceHolder surfaceHolder) {
             super.onCreate(surfaceHolder);
+            final DynamicService.WPEngine self = this;
 
             IntentFilter lockFilter = new IntentFilter();
             lockFilter.addAction(Intent.ACTION_SCREEN_ON);
@@ -158,6 +160,7 @@ public class DynamicService extends WallpaperService {
                 @Override
                 public void onReceive(Context context, Intent intent) {
                     reloadLockState();
+                    mHandler.post(self);
                 }
             };
             registerReceiver(mScreenStateReceiver, lockFilter);
@@ -172,22 +175,37 @@ public class DynamicService extends WallpaperService {
             timeFilter.addAction(Intent.ACTION_DATE_CHANGED);
             mContext.registerReceiver(mTransitions, timeFilter);
 
-            //final DynamicService.WPEngine self = this;
             mVisualizer = new VisualizeFX(this);
+
+            Settings.reload(mContext);
+            Settings.getPrefs(mContext).registerOnSharedPreferenceChangeListener(this);
+        }
+
+        @Override
+        public void onSharedPreferenceChanged(SharedPreferences sharedPreferences, String key) {
+            Settings.reload(mContext);
+            reloadVisualizerState();
+
+            mHandler.post(this);
         }
 
         @Override
         public void onVisibilityChanged(boolean visible) {
             super.onVisibilityChanged(visible);
             mVisible = visible;
+
             reloadLockState();
-            Settings.reload(mContext);
-            mVisualizer.setEnabled(visible && Settings.visualizerEnabled);
+            reloadVisualizerState();
+
+            mHandler.post(this);
         }
 
         private void reloadLockState() {
             mTransitions.setLocked(mKm.inKeyguardRestrictedInputMode());
-            mHandler.post(this);
+        }
+
+        private void reloadVisualizerState() {
+            mVisualizer.setEnabled(mVisible && Settings.visualizerEnabled);
         }
 
         @Override
@@ -259,6 +277,7 @@ public class DynamicService extends WallpaperService {
         @Override
         public void onDestroy() {
             super.onDestroy();
+            Settings.getPrefs(mContext).unregisterOnSharedPreferenceChangeListener(this);
 
             mVisualizer.release();
 
