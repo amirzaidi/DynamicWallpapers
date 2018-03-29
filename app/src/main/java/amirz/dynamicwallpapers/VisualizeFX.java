@@ -34,7 +34,7 @@ public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureL
             totalMagnitude += (float)Math.log10(Math.hypot(fft[i], fft[i + 1]) + 1);
         }
 
-        float newMagnitude = Curves.clamp(totalMagnitude / fft.length * 0.65f - 0.75f);
+        float newMagnitude = Curves.clamp(totalMagnitude / fft.length * 0.7f - 0.8f);
 
         if (newMagnitude < 0.1f) {
             //Don't show any effects on small magnitudes
