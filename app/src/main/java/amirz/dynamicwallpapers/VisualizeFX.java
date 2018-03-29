@@ -1,14 +1,19 @@
 package amirz.dynamicwallpapers;
 
 import android.media.audiofx.Visualizer;
+import android.os.Handler;
 
-public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureListener {
+public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureListener, Runnable {
     private final Runnable mUpdate;
+    private final Handler mHandler;
+    private byte[] mFft;
+    private int mSamplingRate;
     public float magnitude;
 
     public VisualizeFX(Runnable update) throws RuntimeException {
         super(0);
         mUpdate = update;
+        mHandler = new Handler();
         setEnabled(false);
         setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
         setDataCaptureListener(this, Math.min(StateTransitions.FAST_UPDATE_FPS * 1000, Visualizer.getMaxCaptureRate()), false, true);
@@ -20,19 +25,29 @@ public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureL
 
     @Override
     public void onFftDataCapture(Visualizer visualizer, byte[] fft, int samplingRate) {
-        float highestMagnitude = 0f;
+        mFft = fft;
+        mSamplingRate = samplingRate;
 
-        //Up to 250 Hz
-        for (int i = 0; i < 500 * 1000 * fft.length / samplingRate; i += 2) {
-            float magnitude = (float)Math.abs(fft[i]) / 128;
-            if (magnitude > highestMagnitude) {
-                highestMagnitude = magnitude;
-            }
+        mHandler.removeCallbacks(this);
+        mHandler.post(this);
+    }
+
+    @Override
+    public void run() {
+        //To 120 Hz
+        int max = 120 * 1000 * 2 * mFft.length / mSamplingRate;
+
+        double magnitudeSum = 0;
+        for (int i = 0; i < max; i += 2) {
+            double mag = Math.hypot(mFft[i], mFft[i + 1]);
+            magnitudeSum += mag;
         }
 
-        highestMagnitude *= highestMagnitude;
-        if (highestMagnitude != magnitude) {
-            magnitude = (magnitude + highestMagnitude) / 2;
+        float magnitudeAvg = Curves.clamp((float)magnitudeSum / max / 64);
+        magnitudeAvg *= magnitudeAvg;
+
+        if (magnitudeAvg != magnitude) {
+            magnitude = (magnitudeAvg + magnitude) / 2;
             if (magnitude < 0.05f) {
                 magnitude = 0f;
             }

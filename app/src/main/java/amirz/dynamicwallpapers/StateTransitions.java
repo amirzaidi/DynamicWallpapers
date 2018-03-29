@@ -56,13 +56,13 @@ public class StateTransitions extends BroadcastReceiver {
     /**
      * @return an integer in the range of 0 to MAX_BLUR
      */
-    int getBlur(float bias) {
+    int getBlur(float offset) {
         if (mLocked) {
             return MAX_BLUR;
         }
         float lockFactor = (float) unlockedMs() / UNLOCK_BLUR_MS;
         float unlockFactor = 1 - Curves.clamp(lockFactor);
-        return (int) (MAX_BLUR * Curves.clamp(bias + Curves.halfCosPosWeak(unlockFactor)));
+        return (int) (MAX_BLUR * Curves.clamp(offset + Curves.halfCosPosWeak(unlockFactor)));
     }
 
     boolean inTransition() {

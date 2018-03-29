@@ -164,21 +164,16 @@ public class DynamicService extends WallpaperService {
             timeFilter.addAction(Intent.ACTION_DATE_CHANGED);
             mContext.registerReceiver(mTransitions, timeFilter);
 
-            final DynamicService.WPEngine self = this;
-            mVisualizer = new VisualizeFX(new Runnable() {
-                @Override
-                public void run() {
-                    mHandler.post(self);
-                }
-            });
+            //final DynamicService.WPEngine self = this;
+            mVisualizer = new VisualizeFX(this);
         }
 
         @Override
         public void onVisibilityChanged(boolean visible) {
             super.onVisibilityChanged(visible);
             mVisible = visible;
-            mVisualizer.setEnabled(visible);
             reloadLockState();
+            mVisualizer.setEnabled(visible);
         }
 
         private void reloadLockState() {
@@ -285,9 +280,7 @@ public class DynamicService extends WallpaperService {
         @Override
         public void run() {
             if (mVisible && mScaleBitmap != null) {
-                int delayToNext = mTransitions.delayToNext();
-                int blurRadius = mTransitions.getBlur(mVisualizer.magnitude);
-
+                float musicMagnitude = 0f;
                 int second = currentSecond();
                 if (second > mLastCurveRender + StateTransitions.MAX_CURVE_RENDER_DECAY || second < mLastCurveRender || !mTransitions.inTransition()) {
                     //Only render on the first frame of blurring and scrolling to prevent stutters
@@ -297,7 +290,12 @@ public class DynamicService extends WallpaperService {
                     mRsMain.invoke_setContrast(mTransitions.getContrast(progress));
                     mRsMain.set_saturationIncrease(mTransitions.getSaturation(progress));
                     mRsMain.forEach_transform(mScaleAlloc, mMinuteAlloc);
+
+                    musicMagnitude = mVisualizer.magnitude / 3f;
                 }
+
+                int delayToNext = mTransitions.delayToNext();
+                int blurRadius = mTransitions.getBlur(musicMagnitude);
 
                 if (blurRadius > 0) {
                     ScriptIntrinsicBlur blur = ScriptIntrinsicBlur.create(mRs, mMinuteAlloc.getElement());
@@ -311,8 +309,8 @@ public class DynamicService extends WallpaperService {
 
                 int leftOffset = (int)(mScroll * (mScaleBitmap.getWidth() - mDestRect.right));
 
-                int zoomWidth = (int)(mDestRect.right * mVisualizer.magnitude / 8);
-                int zoomHeight = (int)(mDestRect.bottom * mVisualizer.magnitude / 8);
+                int zoomWidth = (int)(mDestRect.right * mVisualizer.magnitude / 96);
+                int zoomHeight = (int)(mDestRect.bottom * mVisualizer.magnitude / 96);
 
                 Canvas canvas = mSurfaceHolder.lockCanvas();
                 canvas.drawBitmap(mEffectBitmap, new Rect(leftOffset + zoomWidth,
