@@ -118,7 +118,7 @@ public class DynamicService extends WallpaperService {
             FileOutputStream os;
             try {
                 os = new FileOutputStream(f);
-                bitmap.compress(Bitmap.CompressFormat.PNG, 100, os);
+                AndroidBmpUtil.save(bitmap, os);
                 os.close();
             } catch (Exception ignored) {
             }
@@ -128,7 +128,7 @@ public class DynamicService extends WallpaperService {
             ContextWrapper cw = new ContextWrapper(mContext);
             File cir = cw.getDir("cache", Context.MODE_PRIVATE);
             cir.mkdir();
-            return new File(cir, "bg.png");
+            return new File(cir, "bg.bmp");
         }
 
         /*
