@@ -6,5 +6,11 @@
 
     <style name="SettingsTheme" parent="@android:style/Theme.Material.Settings">
         <item name="android:colorAccent">@color/colorAccent</item>
+        <item name="android:actionBarTheme">@style/SettingsTheme.ActionBar</item>
+    </style>
+
+    <style name="SettingsTheme.ActionBar">
+        <item name="android:textColorPrimary">@color/colorAccent</item>
+        <item name="android:colorControlNormal">@color/colorAccent</item>
     </style>
 </resources>
