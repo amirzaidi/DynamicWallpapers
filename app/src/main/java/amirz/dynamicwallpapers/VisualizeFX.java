@@ -1,22 +1,25 @@
 package amirz.dynamicwallpapers;
 
 import android.media.audiofx.Visualizer;
-import android.os.Handler;
 
-public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureListener, Runnable {
+public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureListener {
     private final Runnable mUpdate;
-    private final Handler mHandler;
-    private byte[] mFft;
-    private int mSamplingRate;
     public float magnitude;
 
     public VisualizeFX(Runnable update) throws RuntimeException {
         super(0);
         mUpdate = update;
-        mHandler = new Handler();
         setEnabled(false);
         setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
         setDataCaptureListener(this, Visualizer.getMaxCaptureRate() / 2, false, true);
+    }
+
+    @Override
+    public int setEnabled(boolean enabled) {
+        if (!enabled) {
+            magnitude = 0;
+        }
+        return super.setEnabled(enabled);
     }
 
     @Override
@@ -25,21 +28,12 @@ public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureL
 
     @Override
     public void onFftDataCapture(Visualizer visualizer, byte[] fft, int samplingRate) {
-        mFft = fft;
-        mSamplingRate = samplingRate;
-
-        mHandler.removeCallbacks(this);
-        mHandler.post(this);
-    }
-
-    @Override
-    public void run() {
         //To 120 Hz
-        int max = 120 * 1000 * 2 * mFft.length / mSamplingRate;
+        int max = 120 * 1000 * 2 * fft.length / samplingRate;
 
         float magnitudeSum = 0;
         for (int i = 0; i < max; i += 2) {
-            magnitudeSum += Math.hypot(mFft[i], mFft[i + 1]);
+            magnitudeSum += Math.hypot(fft[i], fft[i + 1]);
         }
 
         float magnitudeAvg = Curves.clamp(magnitudeSum / max / 64);
