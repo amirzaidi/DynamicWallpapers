@@ -1,3 +1,16 @@
 <resources>
-    <string name="app_name">Dynamic Wallpapers</string>
+    <string name="app_name">Dynamica</string>
+    <string name="settings_name">Settings</string>
+
+    <string name="enable_visualizer">Visualizer</string>
+    <string name="enable_visualizer_desc">Enable music visualization effects</string>
+
+    <string name="enable_scrolling">Scrolling</string>
+    <string name="enable_scrolling_desc">Allow scrolling the wallpaper</string>
+
+    <string name="enable_blur">Blur</string>
+    <string name="enable_blur_desc">Apply blur on the lock screen</string>
+
+    <string name="enable_color">Color profile</string>
+    <string name="enable_color_desc">Change the color balance throughout the day</string>
 </resources>

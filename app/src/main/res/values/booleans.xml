@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <bool name="visualizer_enable_default">true</bool>
+    <bool name="scrolling_enable_default">true</bool>
+    <bool name="blur_enable_default">true</bool>
+    <bool name="color_enable_default">true</bool>
+</resources>

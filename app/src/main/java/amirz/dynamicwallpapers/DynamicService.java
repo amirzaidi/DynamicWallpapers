@@ -28,7 +28,11 @@ import java.util.Calendar;
 public class DynamicService extends WallpaperService {
     @Override
     public Engine onCreateEngine() {
-        return new WPEngine(getApplicationContext());
+        Context context = getApplicationContext();
+        if (Permissions.hasAll(context)) {
+            return new WPEngine(context);
+        }
+        return new WallpaperService.Engine();
     }
 
     class WPEngine extends WallpaperService.Engine implements Runnable {
@@ -133,9 +137,13 @@ public class DynamicService extends WallpaperService {
         @Override
         public void onOffsetsChanged(float xOffset, float yOffset, float xOffsetStep, float yOffsetStep, int xPixelOffset, int yPixelOffset) {
             super.onOffsetsChanged(xOffset, yOffset, xOffsetStep, yOffsetStep, xPixelOffset, yPixelOffset);
-            mScroll = xOffset;
-            mTransitions.scroll();
-            mHandler.post(this);
+            if (Settings.scrollingEnabled) {
+                mScroll = xOffset;
+                mTransitions.scroll();
+                mHandler.post(this);
+            } else {
+                mScroll = 0;
+            }
         }
 
         @Override
@@ -152,7 +160,7 @@ public class DynamicService extends WallpaperService {
                     reloadLockState();
                 }
             };
-            mContext.registerReceiver(mScreenStateReceiver, lockFilter);
+            registerReceiver(mScreenStateReceiver, lockFilter);
 
             mSurfaceHolder = surfaceHolder;
             mRs = RenderScript.create(mContext);
@@ -173,7 +181,8 @@ public class DynamicService extends WallpaperService {
             super.onVisibilityChanged(visible);
             mVisible = visible;
             reloadLockState();
-            mVisualizer.setEnabled(visible);
+            Settings.reload(mContext);
+            mVisualizer.setEnabled(visible && Settings.visualizerEnabled);
         }
 
         private void reloadLockState() {
@@ -253,8 +262,11 @@ public class DynamicService extends WallpaperService {
 
             mVisualizer.release();
 
-            mContext.unregisterReceiver(mTransitions);
-            mContext.unregisterReceiver(mScreenStateReceiver);
+            try {
+                mContext.unregisterReceiver(mTransitions);
+                mContext.unregisterReceiver(mScreenStateReceiver);
+            } catch (IllegalArgumentException ignored) {
+            }
 
             releaseBitmaps();
 
@@ -282,7 +294,8 @@ public class DynamicService extends WallpaperService {
             if (mVisible && mScaleBitmap != null) {
                 float musicMagnitude = 0f;
                 int second = currentSecond();
-                if (second > mLastCurveRender + StateTransitions.MAX_CURVE_RENDER_DECAY || second < mLastCurveRender || !mTransitions.inTransition()) {
+
+                if (Settings.colorEnabled && (second > mLastCurveRender + StateTransitions.MAX_CURVE_RENDER_DECAY || second < mLastCurveRender || !mTransitions.inTransition())) {
                     //Only render on the first frame of blurring and scrolling to prevent stutters
                     mLastCurveRender = second;
                     float progress = (float)second / 24 / 3600;
@@ -297,14 +310,15 @@ public class DynamicService extends WallpaperService {
                 int delayToNext = mTransitions.delayToNext();
                 int blurRadius = mTransitions.getBlur(musicMagnitude);
 
-                if (blurRadius > 0) {
-                    ScriptIntrinsicBlur blur = ScriptIntrinsicBlur.create(mRs, mMinuteAlloc.getElement());
+                Allocation minuteAlloc = Settings.colorEnabled ? mMinuteAlloc : mScaleAlloc;
+                if (blurRadius > 0 && Settings.blurEnabled) {
+                    ScriptIntrinsicBlur blur = ScriptIntrinsicBlur.create(mRs, minuteAlloc.getElement());
                     blur.setRadius(blurRadius);
                     blur.setInput(mMinuteAlloc);
                     blur.forEach(mEffectAlloc);
                     mEffectAlloc.copyTo(mEffectBitmap);
                 } else {
-                    mMinuteAlloc.copyTo(mEffectBitmap);
+                    minuteAlloc.copyTo(mEffectBitmap);
                 }
 
                 int leftOffset = (int)(mScroll * (mScaleBitmap.getWidth() - mDestRect.right));

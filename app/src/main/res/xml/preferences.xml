@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <SwitchPreference
+        android:key="pref_visualizer"
+        android:title="@string/enable_visualizer"
+        android:summary="@string/enable_visualizer_desc"
+        android:defaultValue="@bool/visualizer_enable_default"
+        android:persistent="true" />
+    <SwitchPreference
+        android:key="pref_scrolling"
+        android:title="@string/enable_scrolling"
+        android:summary="@string/enable_scrolling_desc"
+        android:defaultValue="@bool/scrolling_enable_default"
+        android:persistent="true" />
+    <SwitchPreference
+        android:key="pref_blur"
+        android:title="@string/enable_blur"
+        android:summary="@string/enable_blur_desc"
+        android:defaultValue="@bool/blur_enable_default"
+        android:persistent="true" />
+    <SwitchPreference
+        android:key="pref_color"
+        android:title="@string/enable_color"
+        android:summary="@string/enable_color_desc"
+        android:defaultValue="@bool/color_enable_default"
+        android:persistent="true" />
+</PreferenceScreen>
