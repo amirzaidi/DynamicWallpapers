@@ -138,12 +138,10 @@ public class DynamicService extends WallpaperService {
         @Override
         public void onOffsetsChanged(float xOffset, float yOffset, float xOffsetStep, float yOffsetStep, int xPixelOffset, int yPixelOffset) {
             super.onOffsetsChanged(xOffset, yOffset, xOffsetStep, yOffsetStep, xPixelOffset, yPixelOffset);
+            mScroll = xOffset;
             if (Settings.scrollingEnabled) {
-                mScroll = xOffset;
                 mTransitions.scroll();
                 mHandler.post(this);
-            } else {
-                mScroll = 0;
             }
         }
 
@@ -340,7 +338,7 @@ public class DynamicService extends WallpaperService {
                     minuteAlloc.copyTo(mEffectBitmap);
                 }
 
-                int leftOffset = (int)(mScroll * (mScaleBitmap.getWidth() - mDestRect.right));
+                int leftOffset = Settings.scrollingEnabled ? (int)(mScroll * (mScaleBitmap.getWidth() - mDestRect.right)) : 0;
 
                 int zoomWidth = (int)(mDestRect.right * mVisualizer.magnitude / 96);
                 int zoomHeight = (int)(mDestRect.bottom * mVisualizer.magnitude / 96);
