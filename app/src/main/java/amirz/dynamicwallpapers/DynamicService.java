@@ -14,6 +14,7 @@ import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.drawable.Drawable;
 import android.os.Handler;
+import android.os.HandlerThread;
 import android.service.wallpaper.WallpaperService;
 import android.support.v8.renderscript.Allocation;
 import android.support.v8.renderscript.RenderScript;
@@ -41,7 +42,9 @@ public class DynamicService extends WallpaperService {
         private final KeyguardManager mKm;
         private BroadcastReceiver mScreenStateReceiver;
 
-        private final Handler mHandler = new Handler();
+        private HandlerThread mBackgroundThread;
+        private Handler mHandler;
+
         private final Bitmap mSrcBitmap;
 
         /**
@@ -149,6 +152,10 @@ public class DynamicService extends WallpaperService {
         public void onCreate(SurfaceHolder surfaceHolder) {
             super.onCreate(surfaceHolder);
             final DynamicService.WPEngine self = this;
+
+            mBackgroundThread = new HandlerThread("background");
+            mBackgroundThread.start();
+            mHandler = new Handler(mBackgroundThread.getLooper());
 
             IntentFilter lockFilter = new IntentFilter();
             lockFilter.addAction(Intent.ACTION_SCREEN_ON);
@@ -291,6 +298,7 @@ public class DynamicService extends WallpaperService {
             mRs.destroy();
 
             mSrcBitmap.recycle();
+            mBackgroundThread.quitSafely();
         }
 
         private void releaseBitmaps() {
@@ -303,6 +311,15 @@ public class DynamicService extends WallpaperService {
                 mEffectBitmap.recycle();
                 mMinuteBitmap.recycle();
                 mScaleBitmap.recycle();
+            }
+        }
+
+        public void requeue(int delayToNext) {
+            mHandler.removeCallbacks(this);
+            if (delayToNext == 0) {
+                mHandler.post(this);
+            } else {
+                mHandler.postDelayed(this, delayToNext);
             }
         }
 
@@ -345,14 +362,13 @@ public class DynamicService extends WallpaperService {
 
                 Canvas canvas = mSurfaceHolder.lockCanvas();
                 canvas.drawBitmap(mEffectBitmap, new Rect(leftOffset + zoomWidth,
-                        zoomHeight,
-                        mDestRect.right + leftOffset - zoomWidth,
-                        mDestRect.bottom - zoomHeight),
+                            zoomHeight,
+                            mDestRect.right + leftOffset - zoomWidth,
+                            mDestRect.bottom - zoomHeight),
                         mDestRect,null);
                 mSurfaceHolder.unlockCanvasAndPost(canvas);
 
-                mHandler.removeCallbacks(this);
-                mHandler.postDelayed(this, delayToNext);
+                requeue(delayToNext);
             }
         }
 

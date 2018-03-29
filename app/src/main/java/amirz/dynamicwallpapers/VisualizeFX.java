@@ -3,15 +3,15 @@ package amirz.dynamicwallpapers;
 import android.media.audiofx.Visualizer;
 
 public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureListener {
-    private final Runnable mUpdate;
+    private final DynamicService.WPEngine mEngine;
     public float magnitude;
 
-    public VisualizeFX(Runnable update) throws RuntimeException {
+    public VisualizeFX(DynamicService.WPEngine engine) throws RuntimeException {
         super(0);
-        mUpdate = update;
+        mEngine = engine;
         setEnabled(false);
         setCaptureSize(Visualizer.getCaptureSizeRange()[1]);
-        setDataCaptureListener(this, Visualizer.getMaxCaptureRate() / 2, false, true);
+        setDataCaptureListener(this, Visualizer.getMaxCaptureRate(), false, true);
     }
 
     @Override
@@ -28,31 +28,29 @@ public class VisualizeFX extends Visualizer implements Visualizer.OnDataCaptureL
 
     @Override
     public void onFftDataCapture(Visualizer visualizer, byte[] fft, int samplingRate) {
-        //To 120 Hz
-        int max = 120 * 1000 * 2 * fft.length / samplingRate;
-
-        float magnitudeSum = 0;
-        for (int i = 0; i < max; i += 2) {
-            magnitudeSum += Math.hypot(fft[i], fft[i + 1]);
+        //Bias towards bassline
+        float totalMagnitude = (float)Math.log10(Math.hypot(fft[0], fft[1]) + 1) * fft.length;
+        for (int i = 2; i < fft.length; i += 2) {
+            totalMagnitude += (float)Math.log10(Math.hypot(fft[i], fft[i + 1]) + 1);
         }
 
-        float magnitudeAvg = Curves.clamp(magnitudeSum / max / 64);
+        float newMagnitude = Curves.clamp(totalMagnitude / fft.length * 0.65f - 0.75f);
 
-        if (magnitudeAvg != magnitude) {
-            if (magnitudeAvg > magnitude) {
+        if (newMagnitude < 0.1f) {
+            //Don't show any effects on small magnitudes
+            newMagnitude = 0f;
+        }
+
+        if (newMagnitude != magnitude) {
+            if (newMagnitude > magnitude) {
                 //Immediately jump to the highest value
-                magnitude = magnitudeAvg;
+                magnitude = newMagnitude;
             } else {
                 //Smooth the graph by slowly reducing it
-                magnitude = magnitude * 0.67f + magnitudeAvg * 0.33f;
+                magnitude = magnitude * 0.67f + newMagnitude * 0.33f;
             }
 
-            if (magnitude < 0.1f) {
-                //Don't show any effects on small magnitudes
-                magnitude = 0f;
-            }
-
-            mUpdate.run();
+            mEngine.requeue(0);
         }
     }
 }
