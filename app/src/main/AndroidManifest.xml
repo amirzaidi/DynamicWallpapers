@@ -30,32 +30,6 @@
                 android:name="android.service.wallpaper"
                 android:resource="@xml/wallpaper" />
         </service>
-        <service
-            android:name=".DynamicServiceWhite"
-            android:enabled="true"
-            android:exported="true"
-            android:label="Dynamic Light"
-            android:permission="android.permission.BIND_WALLPAPER">
-            <intent-filter>
-                <action android:name="android.service.wallpaper.WallpaperService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.service.wallpaper"
-                android:resource="@xml/wallpaper_white" />
-        </service>
-        <service
-            android:name=".DynamicServiceBlack"
-            android:enabled="true"
-            android:exported="true"
-            android:label="Dynamic Dark"
-            android:permission="android.permission.BIND_WALLPAPER">
-            <intent-filter>
-                <action android:name="android.service.wallpaper.WallpaperService" />
-            </intent-filter>
-            <meta-data
-                android:name="android.service.wallpaper"
-                android:resource="@xml/wallpaper_black" />
-        </service>
 
         <activity
             android:name=".Settings"
